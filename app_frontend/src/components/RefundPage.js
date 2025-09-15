@@ -24,38 +24,73 @@ const RefundPage = () => {
     }
   };
 
+  // PUBLIC_INTERFACE
   const handleAmountChange = (e) => {
     let value = e.target.value;
-    
-    // Remove any non-numeric or non-decimal characters except the first decimal point
+
+    // Allow only digits and dots
     value = value.replace(/[^\d.]/g, '');
-    
-    // Ensure only one decimal point
-    const parts = value.split('.');
-    if (parts.length > 2) {
-      value = parts[0] + '.' + parts.slice(1).join('');
-    }
-    
-    // Limit decimal places to 2
-    if (parts.length === 2 && parts[1].length > 2) {
-      value = parts[0] + '.' + parts[1].slice(0, 2);
+
+    // If multiple dots, keep only the first and remove the rest
+    const firstDotIndex = value.indexOf('.');
+    if (firstDotIndex !== -1) {
+      // Remove any subsequent dots
+      const before = value.slice(0, firstDotIndex + 1);
+      const after = value
+        .slice(firstDotIndex + 1)
+        .replace(/\./g, '');
+      value = before + after;
     }
 
-    // Update state if empty or valid decimal
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+    // At this point, the string matches: ^\d*\.?\d*$
+    // We only constrain decimal places AFTER the user stops typing (onBlur)
+    // but we'll still allow up to 2 for smoother UX if they paste more.
+    const match = value.match(/^(\d*)(?:\.(\d*))?$/);
+    if (match) {
+      const integerPart = match[1] ?? '';
+      const decimalPart = match[2] ?? undefined;
+
+      // If there is a decimal part, limit its length to 2, but do NOT remove the dot itself.
+      if (decimalPart !== undefined) {
+        const limitedDecimal = decimalPart.slice(0, 2);
+        value = `${integerPart}.${limitedDecimal}`;
+      } else {
+        value = integerPart;
+      }
+
+      // Allow empty string to let user clear field
       setRefundAmount(value);
+    } else if (value === '') {
+      setRefundAmount('');
     }
   };
 
   const handleBlur = () => {
-    // Format to 2 decimal places when leaving the input
-    if (refundAmount) {
-      const numValue = parseFloat(refundAmount);
-      if (!isNaN(numValue)) {
-        setRefundAmount(numValue.toFixed(2));
-      }
+    // Format to 2 decimal places when leaving the input,
+    // but only if a valid number exists.
+    const trimmed = (refundAmount || '').trim();
+
+    // Accept '.', '', and similar transient values -> normalize to '0.00'
+    // Or if it's like '12.' -> treat as '12.00'
+    if (trimmed === '' || trimmed === '.' || trimmed === '.0' || trimmed === '.00') {
+      setRefundAmount('0.00');
+      return;
+    }
+
+    const numValue = parseFloat(trimmed);
+    if (!isNaN(numValue)) {
+      setRefundAmount(numValue.toFixed(2));
+    } else {
+      // If parse fails, reset to safe default
+      setRefundAmount('0.00');
     }
   };
+
+  // When enabling submit button, require a positive numeric value
+  const isPositiveNumber = (() => {
+    const n = parseFloat(refundAmount);
+    return !isNaN(n) && n > 0;
+  })();
 
   return (
     <div className="refund-page">
@@ -77,14 +112,15 @@ const RefundPage = () => {
               onChange={handleAmountChange}
               onBlur={handleBlur}
               inputMode="decimal"
-              pattern="[0-9]*[.]?[0-9]*"
+              // Pattern allows empty, digits, optional dot and digits (doesn't interfere with controlled input)
+              pattern="^\d*\.?\d*$"
               className="refund-input"
               placeholder="0.00"
             />
             <button
               className="refund-submit-btn"
               onClick={handleRefundSubmit}
-              disabled={isSubmitting || !refundAmount || parseFloat(refundAmount) === 0}
+              disabled={isSubmitting || !isPositiveNumber}
             >
               {isSubmitting ? 'Processing...' : 'OK'}
             </button>

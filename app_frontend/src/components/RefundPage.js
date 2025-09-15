@@ -25,9 +25,35 @@ const RefundPage = () => {
   };
 
   const handleAmountChange = (e) => {
-    const value = e.target.value;
-    if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+    let value = e.target.value;
+    
+    // Remove any non-numeric or non-decimal characters except the first decimal point
+    value = value.replace(/[^\d.]/g, '');
+    
+    // Ensure only one decimal point
+    const parts = value.split('.');
+    if (parts.length > 2) {
+      value = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    // Limit decimal places to 2
+    if (parts.length === 2 && parts[1].length > 2) {
+      value = parts[0] + '.' + parts[1].slice(0, 2);
+    }
+
+    // Update state if empty or valid decimal
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
       setRefundAmount(value);
+    }
+  };
+
+  const handleBlur = () => {
+    // Format to 2 decimal places when leaving the input
+    if (refundAmount) {
+      const numValue = parseFloat(refundAmount);
+      if (!isNaN(numValue)) {
+        setRefundAmount(numValue.toFixed(2));
+      }
     }
   };
 
@@ -46,18 +72,19 @@ const RefundPage = () => {
         <div className="refund-form">
           <div className="input-group">
             <input
-              type="number"
+              type="text"
               value={refundAmount}
               onChange={handleAmountChange}
-              step="0.01"
-              min="0"
+              onBlur={handleBlur}
+              inputMode="decimal"
+              pattern="[0-9]*[.]?[0-9]*"
               className="refund-input"
               placeholder="0.00"
             />
             <button
               className="refund-submit-btn"
               onClick={handleRefundSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !refundAmount || parseFloat(refundAmount) === 0}
             >
               {isSubmitting ? 'Processing...' : 'OK'}
             </button>

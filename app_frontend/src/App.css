@@ -8,6 +8,16 @@
   --border-color: #e9ecef;
   --button-bg: #007bff;
   --button-text: #ffffff;
+  
+  /* Refund page variables */
+  --primary-color: #0066CC;
+  --text-color: #1A1A1A;
+  --white: #FFFFFF;
+  --success-color: #4CAF50;
+  --border-radius: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
 }
 
 [data-theme="dark"] {
